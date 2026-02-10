@@ -196,9 +196,6 @@ RUN apk add --no-cache \
     ffmpeg \
     fontconfig \
     freetype \
-    font-noto \
-    font-noto-emoji \
-    ttf-dejavu \
     python3 \
     py3-pip \
     git \
@@ -206,8 +203,13 @@ RUN apk add --no-cache \
     wget \
     jq \
     bash \
-    docker-cli \
-    && mkdir -p /usr/share/fonts /usr/share/fontconfig /etc/fonts
+    docker-cli
+
+# Fonts for ffmpeg drawtext (optional — don't fail if unavailable)
+RUN apk add --no-cache font-noto ttf-dejavu 2>/dev/null || true
+
+# Ensure directories exist for COPY stage (even if font packages missing)
+RUN mkdir -p /usr/share/fonts /usr/share/fontconfig /etc/fonts
 
 # Install yt-dlp via pip
 RUN pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
