@@ -205,56 +205,51 @@ RUN apk add --no-cache \
     bash \
     docker-cli
 
-# Fonts for ffmpeg drawtext (optional — don't fail if unavailable)
 RUN apk add --no-cache font-noto ttf-dejavu 2>/dev/null || true
 
-# Ensure directories exist for COPY stage (even if font packages missing)
-RUN mkdir -p /usr/share/fonts /usr/share/fontconfig /etc/fonts
-
-# Install yt-dlp via pip
 RUN pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
     || pip3 install --no-cache-dir yt-dlp
 
+# Pack everything into a single archive to avoid COPY path issues
+RUN mkdir -p /export && \
+    tar cf /export/tools.tar \
+      /usr/bin/ffmpeg \
+      /usr/bin/ffprobe \
+      /usr/bin/python3 \
+      /usr/bin/git \
+      /usr/bin/curl \
+      /usr/bin/wget \
+      /usr/bin/jq \
+      /usr/bin/bash \
+      /usr/bin/docker \
+      /usr/bin/fc-scan \
+      /usr/bin/fc-list \
+      /usr/bin/fc-cache \
+      /usr/bin/yt-dlp \
+      /usr/lib/ \
+      /lib/ \
+      /etc/fonts/ \
+      /usr/share/fonts/ \
+      /usr/share/fontconfig/ \
+      2>/dev/null ; true
+
 # =============================================================
-# Stage 2: Copy everything into the n8n hardened image
+# Stage 2: Extract into the n8n hardened image
 # =============================================================
 FROM docker.n8n.io/n8nio/n8n:latest
 
 ARG DOCKER_GID=999
 USER root
 
-# Copy entire /usr from builder (includes all binaries and libraries)
-COPY --from=builder /usr/bin/ffmpeg /usr/bin/ffmpeg
-COPY --from=builder /usr/bin/ffprobe /usr/bin/ffprobe
-COPY --from=builder /usr/bin/python3 /usr/bin/python3
-COPY --from=builder /usr/bin/git /usr/bin/git
-COPY --from=builder /usr/bin/curl /usr/bin/curl
-COPY --from=builder /usr/bin/wget /usr/bin/wget
-COPY --from=builder /usr/bin/jq /usr/bin/jq
-COPY --from=builder /usr/bin/bash /usr/bin/bash
-COPY --from=builder /usr/bin/docker /usr/bin/docker
-COPY --from=builder /usr/bin/fc-scan /usr/bin/fc-scan
-COPY --from=builder /usr/bin/fc-list /usr/bin/fc-list
-COPY --from=builder /usr/bin/fc-cache /usr/bin/fc-cache
+# Extract all tools and libraries in one shot
+COPY --from=builder /export/tools.tar /tmp/tools.tar
+RUN tar xf /tmp/tools.tar -C / 2>/dev/null ; rm -f /tmp/tools.tar
 
-# Copy yt-dlp (pip installs to /usr/bin/ on Alpine with --break-system-packages)
-COPY --from=builder /usr/bin/yt-dlp /usr/bin/yt-dlp
-
-# Copy shared libraries needed by binaries
-COPY --from=builder /usr/lib/ /usr/lib/
-COPY --from=builder /usr/local/lib/ /usr/local/lib/
-COPY --from=builder /lib/ /lib/
-
-# Copy fontconfig and freetype configs
-COPY --from=builder /etc/fonts/ /etc/fonts/
-COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
-COPY --from=builder /usr/share/fontconfig/ /usr/share/fontconfig/
-
-# Fix python3 symlinks
+# Python symlink
 RUN ln -sf /usr/bin/python3 /usr/bin/python 2>/dev/null || true
 
 # Docker group access for node user
-RUN addgroup -g $DOCKER_GID docker 2>/dev/null || true; \
+RUN addgroup -g $DOCKER_GID docker 2>/dev/null || true ; \
     addgroup node docker 2>/dev/null || true
 
 # Create directories
@@ -935,6 +930,9 @@ fi
 step "Building Docker Images"
 
 cd "$BEGET_DIR"
+
+# Clear Docker build cache to avoid stale layers
+docker builder prune -af 2>/dev/null || true
 
 # Build custom n8n image
 docker compose build --no-cache n8n 2>&1 | tail -5
