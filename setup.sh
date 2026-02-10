@@ -192,64 +192,32 @@ FROM docker.n8n.io/n8nio/n8n:latest
 ARG DOCKER_GID=999
 USER root
 
-# Auto-detect OS and install packages (Alpine = apk, Debian = apt-get)
-RUN if command -v apk >/dev/null 2>&1; then \
-      echo ">>> Detected Alpine, using apk..." && \
-      apk add --no-cache \
-        ffmpeg \
-        fontconfig \
-        freetype \
-        python3 \
-        py3-pip \
-        python3-dev \
-        git \
-        build-base \
-        curl \
-        wget \
-        jq \
-        bash \
-        docker-cli \
-      && pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
-         || pip3 install --no-cache-dir yt-dlp; \
-    else \
-      echo ">>> Detected Debian/Ubuntu, using apt-get..." && \
-      apt-get update && apt-get install -y --no-install-recommends \
-        ffmpeg \
-        libfontconfig1 \
-        libfreetype6 \
-        fontconfig \
-        locales \
-        git \
-        build-essential \
-        python3 \
-        python3-pip \
-        python3-dev \
-        curl \
-        wget \
-        jq \
-      && pip install --no-cache-dir --break-system-packages yt-dlp \
-      && apt-get clean \
-      && rm -rf /var/lib/apt/lists/* \
-      && echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen; \
-    fi
+# Install system packages (Alpine)
+RUN apk add --no-cache \
+    ffmpeg \
+    fontconfig \
+    freetype \
+    python3 \
+    git \
+    curl \
+    wget \
+    jq \
+    bash \
+    docker-cli
 
-# Add node user to docker group for docker.sock access
-# (handles both Alpine addgroup and Debian groupadd)
-RUN if command -v groupadd >/dev/null 2>&1; then \
-      groupadd -g $DOCKER_GID docker 2>/dev/null || true && \
-      usermod -aG docker node; \
-    else \
-      addgroup -g $DOCKER_GID docker 2>/dev/null || true && \
-      addgroup node docker 2>/dev/null || true; \
-    fi
+# Install pip and yt-dlp separately (handles different Alpine versions)
+RUN apk add --no-cache py3-pip 2>/dev/null || true
+RUN pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
+    || pip3 install --no-cache-dir yt-dlp 2>/dev/null \
+    || python3 -m ensurepip && python3 -m pip install --no-cache-dir yt-dlp
 
-# Create shims directory
-RUN mkdir -p /opt/shims && \
-    chown node:node /opt/shims
+# Docker group access for node user
+RUN addgroup -g $DOCKER_GID docker 2>/dev/null || true && \
+    addgroup node docker 2>/dev/null || true
 
-# Create /data directory for file storage
-RUN mkdir -p /data && \
-    chown node:node /data
+# Create directories
+RUN mkdir -p /opt/shims /data && \
+    chown node:node /opt/shims /data
 
 USER node
 DOCKERFILE_N8N
