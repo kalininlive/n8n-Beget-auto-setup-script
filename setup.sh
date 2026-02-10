@@ -7,7 +7,7 @@ set -euo pipefail
 # with ffmpeg, python3, yt-dlp, fc-scan, docker-in-docker, and more.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/kalininlive/n8n-Beget-auto-setup-script/main/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/YOUR_USER/n8n-beget-setup/main/setup.sh | bash
 #   # OR
 #   bash setup.sh [OPTIONS]
 #
@@ -187,17 +187,17 @@ log "Directories created"
 step "Creating Dockerfile.n8n"
 
 cat > "$BEGET_DIR/Dockerfile.n8n" << 'DOCKERFILE_N8N'
-FROM docker.n8n.io/n8nio/n8n:latest
+# =============================================================
+# Stage 1: Install all tools in a regular Alpine image
+# =============================================================
+FROM alpine:3.22 AS builder
 
-ARG DOCKER_GID=999
-USER root
-
-# Install system packages (Alpine)
 RUN apk add --no-cache \
     ffmpeg \
     fontconfig \
     freetype \
     python3 \
+    py3-pip \
     git \
     curl \
     wget \
@@ -205,14 +205,50 @@ RUN apk add --no-cache \
     bash \
     docker-cli
 
-# Install pip and yt-dlp separately (handles different Alpine versions)
-RUN apk add --no-cache py3-pip 2>/dev/null || true
+# Install yt-dlp via pip
 RUN pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
-    || pip3 install --no-cache-dir yt-dlp 2>/dev/null \
-    || python3 -m ensurepip && python3 -m pip install --no-cache-dir yt-dlp
+    || pip3 install --no-cache-dir yt-dlp
+
+# =============================================================
+# Stage 2: Copy everything into the n8n hardened image
+# =============================================================
+FROM docker.n8n.io/n8nio/n8n:latest
+
+ARG DOCKER_GID=999
+USER root
+
+# Copy entire /usr from builder (includes all binaries and libraries)
+COPY --from=builder /usr/bin/ffmpeg /usr/bin/ffmpeg
+COPY --from=builder /usr/bin/ffprobe /usr/bin/ffprobe
+COPY --from=builder /usr/bin/python3 /usr/bin/python3
+COPY --from=builder /usr/bin/git /usr/bin/git
+COPY --from=builder /usr/bin/curl /usr/bin/curl
+COPY --from=builder /usr/bin/wget /usr/bin/wget
+COPY --from=builder /usr/bin/jq /usr/bin/jq
+COPY --from=builder /usr/bin/bash /usr/bin/bash
+COPY --from=builder /usr/bin/docker /usr/bin/docker
+COPY --from=builder /usr/bin/fc-scan /usr/bin/fc-scan
+COPY --from=builder /usr/bin/fc-list /usr/bin/fc-list
+COPY --from=builder /usr/bin/fc-cache /usr/bin/fc-cache
+
+# Copy yt-dlp (pip installs to /usr/bin/ on Alpine with --break-system-packages)
+COPY --from=builder /usr/bin/yt-dlp /usr/bin/yt-dlp
+
+# Copy shared libraries needed by binaries
+COPY --from=builder /usr/lib/ /usr/lib/
+COPY --from=builder /usr/local/lib/ /usr/local/lib/
+COPY --from=builder /lib/ /lib/
+
+# Copy fontconfig and freetype configs
+COPY --from=builder /etc/fonts/ /etc/fonts/
+COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
+COPY --from=builder /usr/share/fontconfig/ /usr/share/fontconfig/
+
+# Fix python3 symlinks
+RUN ln -sf /usr/bin/python3 /usr/bin/python 2>/dev/null || true
 
 # Docker group access for node user
-RUN addgroup -g $DOCKER_GID docker 2>/dev/null || true && \
+RUN addgroup -g $DOCKER_GID docker 2>/dev/null || true; \
     addgroup node docker 2>/dev/null || true
 
 # Create directories
