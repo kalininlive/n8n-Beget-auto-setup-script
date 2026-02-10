@@ -192,32 +192,56 @@ FROM docker.n8n.io/n8nio/n8n:latest
 ARG DOCKER_GID=999
 USER root
 
-# Install necessary packages: ffmpeg, python3, yt-dlp, fontconfig, locales
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    libfontconfig1 \
-    libfreetype6 \
-    fontconfig \
-    locales \
-    git \
-    build-essential \
-    python3 \
-    python3-pip \
-    python3-dev \
-    curl \
-    wget \
-    jq \
-    && pip install --no-cache-dir --break-system-packages yt-dlp \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Configure locales for fontconfig and drawtext filter
-RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
-    locale-gen
+# Auto-detect OS and install packages (Alpine = apk, Debian = apt-get)
+RUN if command -v apk >/dev/null 2>&1; then \
+      echo ">>> Detected Alpine, using apk..." && \
+      apk add --no-cache \
+        ffmpeg \
+        fontconfig \
+        freetype \
+        python3 \
+        py3-pip \
+        python3-dev \
+        git \
+        build-base \
+        curl \
+        wget \
+        jq \
+        bash \
+        docker-cli \
+      && pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
+         || pip3 install --no-cache-dir yt-dlp; \
+    else \
+      echo ">>> Detected Debian/Ubuntu, using apt-get..." && \
+      apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libfontconfig1 \
+        libfreetype6 \
+        fontconfig \
+        locales \
+        git \
+        build-essential \
+        python3 \
+        python3-pip \
+        python3-dev \
+        curl \
+        wget \
+        jq \
+      && pip install --no-cache-dir --break-system-packages yt-dlp \
+      && apt-get clean \
+      && rm -rf /var/lib/apt/lists/* \
+      && echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen; \
+    fi
 
 # Add node user to docker group for docker.sock access
-RUN groupadd -g $DOCKER_GID docker || true && \
-    usermod -aG docker node
+# (handles both Alpine addgroup and Debian groupadd)
+RUN if command -v groupadd >/dev/null 2>&1; then \
+      groupadd -g $DOCKER_GID docker 2>/dev/null || true && \
+      usermod -aG docker node; \
+    else \
+      addgroup -g $DOCKER_GID docker 2>/dev/null || true && \
+      addgroup node docker 2>/dev/null || true; \
+    fi
 
 # Create shims directory
 RUN mkdir -p /opt/shims && \
@@ -281,10 +305,16 @@ cat > "$BEGET_DIR/shims/python3" << 'SHIM'
 exec /usr/bin/python3 "$@"
 SHIM
 
-# yt-dlp shim
+# yt-dlp shim (auto-detect path: Debian=/usr/local/bin, Alpine=/usr/bin)
 cat > "$BEGET_DIR/shims/yt-dlp" << 'SHIM'
 #!/bin/bash
-exec /usr/local/bin/yt-dlp "$@"
+if [ -x /usr/local/bin/yt-dlp ]; then
+  exec /usr/local/bin/yt-dlp "$@"
+elif [ -x /usr/bin/yt-dlp ]; then
+  exec /usr/bin/yt-dlp "$@"
+else
+  echo "yt-dlp not found" >&2; exit 1
+fi
 SHIM
 
 chmod +x "$BEGET_DIR/shims/"*
