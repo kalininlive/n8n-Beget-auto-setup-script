@@ -173,6 +173,8 @@ log "Containers stopped"
 step "Creating Directory Structure"
 
 mkdir -p "$BEGET_DIR/shims"
+# Clean shims dir (may contain dirs from previous runs)
+rm -rf "$BEGET_DIR/shims/"*
 mkdir -p "$BEGET_DIR/data"
 mkdir -p "$BEGET_DIR/backups"
 mkdir -p "$BEGET_DIR/logs"
