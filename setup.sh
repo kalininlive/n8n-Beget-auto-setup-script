@@ -102,11 +102,19 @@ log "Docker: $(docker --version | cut -d' ' -f3 | tr -d ',')"
 EXISTING_DOMAIN=$(grep -oP 'N8N_HOST=\K.*' "$BEGET_DIR/.env" 2>/dev/null || echo "")
 EXISTING_TIMEZONE=$(grep -oP 'GENERIC_TIMEZONE=\K.*' "$BEGET_DIR/.env" 2>/dev/null || echo "Europe/Moscow")
 
+# Auto-detect existing PostgreSQL version (critical: can't upgrade data dir between major versions)
+POSTGRES_VERSION=$(grep -oP 'image:\s*postgres:\K[0-9]+' "$BEGET_DIR/docker-compose.yml" 2>/dev/null || echo "16")
+
+# Auto-detect existing Traefik version
+TRAEFIK_VERSION=$(grep -oP 'image:\s*traefik:\K[0-9.]+' "$BEGET_DIR/docker-compose.yml" 2>/dev/null || echo "3.6.5")
+
 DOMAIN="${DOMAIN_OVERRIDE:-$EXISTING_DOMAIN}"
 TIMEZONE="${TIMEZONE:-$EXISTING_TIMEZONE}"
 
 info "Domain: $DOMAIN"
 info "Timezone: $TIMEZONE"
+info "PostgreSQL: $POSTGRES_VERSION (auto-detected)"
+info "Traefik: $TRAEFIK_VERSION (auto-detected)"
 info "Install bot: $INSTALL_BOT"
 info "Install tools: $INSTALL_TOOLS"
 info "Setup proxy: $SETUP_PROXY"
@@ -593,7 +601,7 @@ x-n8n-volumes: &n8n-volumes
 
 services:
   traefik:
-    image: traefik:3.6.5
+    image: traefik:${TRAEFIK_VERSION}
     container_name: n8n-traefik
     restart: always
     command:
@@ -616,7 +624,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   postgres:
-    image: postgres:16
+    image: postgres:${POSTGRES_VERSION}
     container_name: n8n-postgres
     restart: always
     environment:
