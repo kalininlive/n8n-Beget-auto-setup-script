@@ -583,11 +583,7 @@ x-n8n-volumes: &n8n-volumes
   - ./backups:/opt/beget/n8n/backups
   - ./.env:/opt/beget/n8n/.env
   - ./healthcheck.js:/healthcheck.js
-  # Shim mounts
-  - ./shims/python:/usr/bin/python:ro
-  - ./shims/python3:/usr/bin/python3:ro
-  - ./shims/ffmpeg:/usr/bin/ffmpeg:ro
-  - ./shims/yt-dlp:/usr/bin/yt-dlp:ro
+  # Shims available via PATH=/opt/shims:... (don't mount over /usr/bin — that overwrites real binaries)
   - ./shims:/opt/shims:ro
 
 services:
