@@ -7,7 +7,7 @@ set -euo pipefail
 # with ffmpeg, python3, yt-dlp, fc-scan, docker-in-docker, and more.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/YOUR_USER/n8n-beget-setup/main/setup.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kalininlive/n8n-Beget-auto-setup-script/main/setup.sh | bash
 #   # OR
 #   bash setup.sh [OPTIONS]
 #
