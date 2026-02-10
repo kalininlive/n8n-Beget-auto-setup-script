@@ -28,13 +28,13 @@
 ssh root@your-server
 
 # Запуск одной командой
-curl -fsSL https://raw.githubusercontent.com/kalininlive/n8n-beget-setup/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kalininlive/n8n-Beget-auto-setup-script/main/setup.sh | bash
 ```
 
 ### 3. Или с параметрами
 ```bash
 # Скачать и запустить с опциями
-curl -fsSL https://raw.githubusercontent.com/kalininlive/n8n-beget-setup/main/setup.sh -o /tmp/setup.sh
+curl -fsSL https://raw.githubusercontent.com/kalininlive/n8n-Beget-auto-setup-script/main/setup.sh -o /tmp/setup.sh
 bash /tmp/setup.sh --no-bot --timezone Asia/Yekaterinburg
 ```
 
