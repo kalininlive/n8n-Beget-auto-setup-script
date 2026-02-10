@@ -211,11 +211,13 @@ RUN pip3 install --no-cache-dir --break-system-packages yt-dlp 2>/dev/null \
     || pip3 install --no-cache-dir yt-dlp
 
 # Pack everything into a single archive to avoid COPY path issues
+# -h follows symlinks (python3 -> python3.12)
 RUN mkdir -p /export && \
-    tar cf /export/tools.tar \
+    tar chf /export/tools.tar \
       /usr/bin/ffmpeg \
       /usr/bin/ffprobe \
       /usr/bin/python3 \
+      /usr/bin/python3.12 \
       /usr/bin/git \
       /usr/bin/curl \
       /usr/bin/wget \
@@ -227,6 +229,7 @@ RUN mkdir -p /export && \
       /usr/bin/fc-cache \
       /usr/bin/yt-dlp \
       /usr/lib/ \
+      /usr/local/lib/ \
       /lib/ \
       /etc/fonts/ \
       /usr/share/fonts/ \
