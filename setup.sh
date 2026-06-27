@@ -249,7 +249,7 @@ RUN mkdir -p /export && \
 # =============================================================
 # Stage 2: Extract into the n8n hardened image
 # =============================================================
-FROM docker.n8n.io/n8nio/n8n:latest
+FROM n8nio/n8n:latest
 
 ARG DOCKER_GID=999
 USER root

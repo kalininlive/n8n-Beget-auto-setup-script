@@ -180,6 +180,22 @@ free -h
 swapon --show
 ```
 
+## Устранение неполадок (Troubleshooting)
+
+### Ошибка 429 Too Many Requests (You have reached your unauthenticated pull rate limit)
+
+Если при выполнении скрипта вы видите ошибку `failed to solve: n8nio/n8n:latest... 429 Too Many Requests`, это означает, что IP-адрес вашего сервера (или сети провайдера) временно исчерпал лимит анонимных скачиваний с Docker Hub.
+
+**Решения:**
+1. **Подождать:** Лимиты Docker Hub сбрасываются каждые 6 часов.
+2. **Авторизоваться в Docker Hub (рекомендуется):**
+   Если у вас есть бесплатный аккаунт на [Docker Hub](https://hub.docker.com), выполните на сервере:
+   ```bash
+   docker login
+   ```
+   После успешной авторизации повторите запуск скрипта `setup.sh`. Авторизованные пользователи имеют значительно большие лимиты (200 пулов за 6 часов).
+3. **Использовать зеркала (Registry Mirrors):** Настройте зеркало в конфигурации демона Docker `/etc/docker/daemon.json`.
+
 ## Совместимость
 
 - **Beget Cloud/VPS** — Ubuntu 24.04+
